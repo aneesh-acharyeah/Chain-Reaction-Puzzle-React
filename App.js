@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { motion } from "framer-motion";
 
 const defaultSettings = {
   easy: { size: 4, bombs: 6 },
@@ -6,17 +7,21 @@ const defaultSettings = {
   hard: { size: 8, bombs: 15 }
 };
 
-const cloneGrid = (grid) => grid.map(row => row.slice());
+const cloneGrid = (grid) => grid.map(row => [...row]);
+
 const getNeighbors = (r, c, size) => {
-  const dirs = [[1,0],[-1,0],[0,1],[0,-1]];
-  return dirs.map(([dr,dc]) => [r+dr,c+dc])
-             .filter(([nr,nc]) => nr>=0 && nc>=0 && nr<size && nc<size);
+  const neighbors = [];
+  if (r > 0) neighbors.push([r - 1, c]);
+  if (r < size - 1) neighbors.push([r + 1, c]);
+  if (c > 0) neighbors.push([r, c - 1]);
+  if (c < size - 1) neighbors.push([r, c + 1]);
+  return neighbors;
 };
 
 export default function ChainReaction() {
   const [difficulty, setDifficulty] = useState("medium");
   const { size, bombs } = defaultSettings[difficulty];
-  const [grid, setGrid] = useState(() => Array(size).fill(null).map(()=>Array(size).fill(0)));
+  const [grid, setGrid] = useState([]);
   const [bombsLeft, setBombsLeft] = useState(bombs);
   const [message, setMessage] = useState("");
   const [score, setScore] = useState(0);
@@ -26,7 +31,7 @@ export default function ChainReaction() {
   }, [difficulty]);
 
   const resetGame = () => {
-    setGrid(Array(size).fill(null).map(()=>Array(size).fill(0)));
+    setGrid(Array(size).fill(null).map(() => Array(size).fill(0)));
     setBombsLeft(bombs);
     setMessage("");
     setScore(0);
@@ -46,6 +51,7 @@ export default function ChainReaction() {
       checkWin(currentGrid);
       return;
     }
+
     const newGrid = cloneGrid(currentGrid);
     const nextQueue = [];
 
@@ -55,7 +61,7 @@ export default function ChainReaction() {
         if (newGrid[nr][nc] === 0) {
           newGrid[nr][nc] = 1;
           nextQueue.push([nr, nc]);
-          setScore(s => s + 10);
+          setScore((s) => s + 10);
         }
       });
     });
@@ -65,7 +71,7 @@ export default function ChainReaction() {
   };
 
   const checkWin = (board) => {
-    const safeLeft = board.flat().filter(c => c === 0).length;
+    const safeLeft = board.flat().filter((c) => c === 0).length;
     if (safeLeft === 0) {
       setMessage("🎉 You cleared the board! You win!");
     } else if (bombsLeft === 0) {
@@ -74,16 +80,18 @@ export default function ChainReaction() {
   };
 
   return (
-    <div className="flex flex-col items-center mt-8 font-sans">
-      <h1 className="text-3xl font-bold mb-2">💥 Chain Reaction</h1>
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-[#1f2937] via-[#111827] to-[#000000] text-white">
+      <h1 className="text-4xl font-bold mb-4">💣 Chain Reaction</h1>
 
-      <div className="flex gap-2 mb-4">
+      <div className="flex gap-3 mb-4">
         {Object.keys(defaultSettings).map((lvl) => (
           <button
             key={lvl}
             onClick={() => setDifficulty(lvl)}
-            className={`px-3 py-1 rounded-lg text-white ${
-              difficulty === lvl ? "bg-orange-600" : "bg-gray-500"
+            className={`px-4 py-2 rounded-lg font-semibold transition-all duration-300 ${
+              difficulty === lvl
+                ? "bg-pink-600 scale-105"
+                : "bg-gray-600 hover:bg-gray-700"
             }`}
           >
             {lvl.toUpperCase()}
@@ -91,57 +99,61 @@ export default function ChainReaction() {
         ))}
         <button
           onClick={resetGame}
-          className="px-3 py-1 bg-blue-600 text-white rounded-lg"
+          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg font-semibold transition-all"
         >
           🔄 Reset
         </button>
       </div>
 
-      <p>Bombs left: <b>{bombsLeft}</b> | Score: <b>{score}</b></p>
+      <p className="mb-3">
+        Bombs left: <b>{bombsLeft}</b> | Score: <b>{score}</b>
+      </p>
 
+      {/* GRID */}
       <div
+        className="p-4 rounded-xl shadow-lg border border-gray-500 bg-gray-800"
         style={{
           display: "grid",
-          gridTemplateColumns: `repeat(${size}, 50px)`,
-          gap: 5,
-          marginTop: 10
+          gridTemplateColumns: `repeat(${size}, 60px)`,
+          gap: "6px",
         }}
       >
         {grid.map((row, r) =>
           row.map((cell, c) => {
-            let bg = "#e0e0e0";
-            let content = "";
-            if (cell === 1) { bg = "#FFD54F"; content = "💣"; }
-            else if (cell === 2) { bg = "#FF7043"; content = "💥"; }
+            let bg = "bg-gray-700";
+            let emoji = "";
+
+            if (cell === 1) {
+              bg = "bg-yellow-400 text-black";
+              emoji = "💣";
+            } else if (cell === 2) {
+              bg = "bg-red-500 text-white";
+              emoji = "💥";
+            }
 
             return (
-              <div
+              <motion.div
                 key={`${r}-${c}`}
+                whileHover={{ scale: 1.08 }}
+                whileTap={{ scale: 0.95 }}
                 onClick={() => placeBomb(r, c)}
-                style={{
-                  width: 50,
-                  height: 50,
-                  backgroundColor: bg,
-                  border: "2px solid #555",
-                  cursor: bombsLeft > 0 && cell === 0 ? "pointer" : "not-allowed",
-                  display: "flex",
-                  justifyContent: "center",
-                  alignItems: "center",
-                  borderRadius: 8,
-                  transition: "all 0.3s",
-                  fontSize: 22,
-                  fontWeight: "bold"
-                }}
+                className={`${bg} w-[60px] h-[60px] flex justify-center items-center rounded-md border border-gray-900 cursor-pointer text-2xl font-bold transition-all`}
               >
-                {content}
-              </div>
+                {emoji}
+              </motion.div>
             );
           })
         )}
       </div>
 
       {message && (
-        <p className="mt-4 text-lg font-bold">{message}</p>
+        <motion.p
+          className="mt-5 text-2xl font-bold"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+        >
+          {message}
+        </motion.p>
       )}
     </div>
   );
